@@ -10,7 +10,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
     async def handle_ask_service(call: ServiceCall):
         prompt = call.data.get("prompt")
-        model = call.data.get("model", "text-davinci-003")
+        model = call.data.get("model", "gpt-3.5-turbo")
 
         if not prompt:
             _LOGGER.warning("No prompt provided to OpenAI.")
@@ -18,21 +18,19 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
         try:
             response = await hass.async_add_executor_job(
-                lambda: openai.Completion.create(
+                lambda: openai.ChatCompletion.create(
                     model=model,
-                    prompt=prompt,
+                    messages=[{"role": "user", "content": prompt}],
                     temperature=0.7,
-                    max_tokens=300,
-                    top_p=1,
-                    frequency_penalty=0,
-                    presence_penalty=0
+                    max_tokens=500
                 )
             )
-            reply = response.choices[0].text.strip()
+
+            reply = response.choices[0].message["content"].strip()
 
             _LOGGER.info("OpenAI Response: %s", reply)
 
-            # Gửi kết quả về sensor hassio_openai_response nếu có
+            # Cập nhật sensor hassio_openai_response nếu tồn tại
             entity_id = "sensor.hassio_openai_response"
             current = hass.states.get(entity_id)
             if current:
@@ -44,7 +42,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             else:
                 _LOGGER.warning("Sensor '%s' not found!", entity_id)
 
-            # Gửi notification (nếu cần)
+            # Hiện thông báo
             hass.components.persistent_notification.create(
                 f"**Prompt:** {prompt}\n\n**Reply:** {reply}",
                 title="OpenAI Response"
