@@ -32,17 +32,23 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
             _LOGGER.info("OpenAI Response: %s", reply)
 
-            # Gửi notification
+            # Gửi kết quả về sensor hassio_openai_response nếu có
+            entity_id = "sensor.hassio_openai_response"
+            current = hass.states.get(entity_id)
+            if current:
+                hass.states.async_set(entity_id, "response_received", {
+                    "response_text": reply,
+                    "prompt": prompt,
+                    "model": model
+                })
+            else:
+                _LOGGER.warning("Sensor '%s' not found!", entity_id)
+
+            # Gửi notification (nếu cần)
             hass.components.persistent_notification.create(
                 f"**Prompt:** {prompt}\n\n**Reply:** {reply}",
                 title="OpenAI Response"
             )
-
-            # Ghi kết quả vào sensor động
-            hass.states.async_set("sensor.openai_last_reply", reply, {
-                "prompt": prompt,
-                "model": model
-            })
 
         except Exception as e:
             _LOGGER.error("Error communicating with OpenAI: %s", e)
